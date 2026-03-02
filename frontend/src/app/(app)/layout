@@ -1,0 +1,24 @@
+import type { Metadata } from 'next';
+import { Header } from '@/components/Header';
+
+export const metadata: Metadata = {
+  title: 'Dashboard | FPL Optimizer',
+  description: 'Optimize your Fantasy Premier League team',
+};
+
+export default function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-screen bg-background">
+      <Header variant="app" />
+      <main className="pt-16 md:pt-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}
