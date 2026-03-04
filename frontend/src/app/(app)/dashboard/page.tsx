@@ -55,6 +55,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [result, setResult] = useState<OptimizeResponse | null>(null);
   const [currentGw, setCurrentGw] = useState(1);
+  const [viewingGw, setViewingGw] = useState(1); // Which gameweek we're viewing
   const [apiStatus, setApiStatus] = useState<'checking' | 'ok' | 'error'>('checking');
 
   useEffect(() => {
@@ -93,6 +94,7 @@ export default function Dashboard() {
     setLoading(true);
     setError('');
     setResult(null);
+    setViewingGw(currentGw + 1); // Reset to first gameweek
 
     try {
       const request: OptimizeRequest = {
@@ -130,9 +132,80 @@ export default function Dashboard() {
     }
   };
 
+  // Calculate team composition for a specific gameweek
+  const getTeamForGameweek = (targetGw: number): { starting_xi: SquadPlayer[]; bench: SquadPlayer[] } | null => {
+    if (!result?.optimized_squad || !result?.full_plan) return null;
+
+    const teamMap = new Map<number, SquadPlayer>();
+
+    // Initialize with the optimized squad
+    result.optimized_squad.forEach(player => {
+      teamMap.set(player.id, { ...player });
+    });
+
+    // Apply transfers up to the target gameweek
+    for (const gwPlan of result.full_plan) {
+      if (gwPlan.gameweek <= targetGw) {
+        // Apply transfers for this gameweek
+        gwPlan.transfers.forEach(transfer => {
+          if (transfer.action === 'buy') {
+            // Add player - create a new squad player object
+            teamMap.set(transfer.player_id, {
+              id: transfer.player_id,
+              web_name: transfer.name,
+              element_type: 0, // Unknown without full data
+              team: 0,
+              price: 0,
+              position: 1, // Assume starter when bought
+              is_captain: false,
+              is_vice_captain: false,
+              bench_order: 0
+            });
+          } else if (transfer.action === 'sell') {
+            // Remove player
+            teamMap.delete(transfer.player_id);
+          }
+        });
+      }
+    }
+
+    // Convert back to arrays and separate starters/bench
+    const allPlayers = Array.from(teamMap.values());
+    return {
+      starting_xi: allPlayers.filter(p => p.position === 1),
+      bench: allPlayers.filter(p => p.position === 0)
+    };
+  };
+
+  // Get the current viewing gameweek team
+  const currentView = getTeamForGameweek(viewingGw);
+
+  // Navigate to previous/next gameweek
+  const canGoPrev = viewingGw > currentGw + 1;
+  const canGoNext = result?.full_plan && viewingGw < currentGw + result.full_plan.length;
+
+  const goToPrevGw = () => {
+    if (canGoPrev) setViewingGw(viewingGw - 1);
+  };
+
+  const goToNextGw = () => {
+    if (canGoNext) setViewingGw(viewingGw + 1);
+  };
+
   const getPositionBadge = (position: number) => POSITION_LABELS[position] || 'UNK';
   const getPositionColor = (position: number) => POSITION_COLORS[position] || 'bg-gray-500';
   const formatPrice = (price: number) => `£${(price / 10).toFixed(1)}m`;
+
+  const getFixtureBadge = (fixture: { gameweek: number; opponent: string; difficulty: number; is_home: boolean }) => {
+    const difficultyColors = ['bg-green-500/20 text-green-400', 'bg-green-600/20 text-green-400', 'bg-yellow-500/20 text-yellow-400', 'bg-orange-500/20 text-orange-400', 'bg-red-500/20 text-red-400'];
+    return (
+      <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] border ${difficultyColors[fixture.difficulty - 1] || 'bg-gray-500/20'}`}>
+        <span>{fixture.is_home ? 'vs' : '@'}</span>
+        <span className="font-medium">{fixture.opponent}</span>
+        <span className="text-white/50">(GW{fixture.gameweek})</span>
+      </div>
+    );
+  };
 
   const chipLabels: Record<string, { label: string; icon: React.ReactNode }> = {
     wildcard: { label: 'Wildcard', icon: <Crown className="h-3 w-3" /> },
@@ -314,13 +387,46 @@ export default function Dashboard() {
         <StaggerItem direction="up" className="lg:col-span-2 h-full">
           <Card className="bg-white/5 border-white/10 backdrop-blur-sm h-full shadow-xl flex flex-col">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Results
-              </CardTitle>
-              <CardDescription>
-                {result ? `GW${currentGw + 1} optimized squad` : 'Run optimization to see results'}
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Results
+                  </CardTitle>
+                  <CardDescription>
+                    {result ? `Optimized squad for GW${viewingGw}` : 'Run optimization to see results'}
+                  </CardDescription>
+                </div>
+                {result && result.full_plan && result.full_plan.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToPrevGw}
+                      disabled={!canGoPrev || loading}
+                      className="h-8 px-3"
+                    >
+                      ← Prev
+                    </Button>
+                    <div className="flex items-center gap-1.5 bg-primary/10 border border-primary/30 px-3 py-1.5 rounded-lg">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      <span className="font-semibold text-primary">GW{viewingGw}</span>
+                      {viewingGw === currentGw + 1 && (
+                        <Badge variant="secondary" className="text-[10px]">Next</Badge>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToNextGw}
+                      disabled={!canGoNext || loading}
+                      className="h-8 px-3"
+                    >
+                      Next →
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="flex-1">
               {!result ? (
@@ -349,7 +455,7 @@ export default function Dashboard() {
                   <p className="text-destructive font-medium">Optimization Failed</p>
                   <p className="text-sm text-muted-foreground mt-1">{result.message}</p>
                 </div>
-              ) : (
+                  ) : (
                 <div className="space-y-6">
                   <div className="grid grid-cols-3 gap-4">
                     <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center backdrop-blur-sm hover:bg-white/10 transition-colors shadow-inner">
@@ -378,9 +484,9 @@ export default function Dashboard() {
                     <div>
                       <h3 className="font-semibold mb-3 flex items-center gap-2">
                         <Users className="h-4 w-4" />
-                        Starting XI (GW{currentGw + 1})
+                        Starting XI (GW{viewingGw})
                       </h3>
-                      <Pitch players={result.starting_xi || []} />
+                      <Pitch players={currentView?.starting_xi || result.starting_xi || []} />
                     </div>
 
                     {result.full_plan && result.full_plan.length > 0 && (
@@ -427,16 +533,68 @@ export default function Dashboard() {
                             </div>
                           ))}
                         </div>
+                       </div>
+                     )}
+                   </div>
+
+                  <Separator />
+
+                  {/* Fixtures Section */}
+                  {result.fixtures && Object.keys(result.fixtures).length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        Upcoming Fixtures (GW{viewingGw})
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto">
+                        {(currentView?.starting_xi || result.starting_xi || []).map((player) => {
+                          const playerFixtures = result.fixtures?.[player.id] || [];
+                          const displayFixtures = playerFixtures.filter((f: { gameweek: number }) => f.gameweek === viewingGw);
+                          
+                          return (
+                            <div key={player.id} className="bg-muted rounded-lg p-3 border">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${getPositionColor(player.element_type)}`}>
+                                    {getPositionBadge(player.element_type)}
+                                  </span>
+                                  <span className="text-sm font-medium">{player.web_name}</span>
+                                  {player.is_captain && (
+                                    <Badge className="text-[8px]">C</Badge>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {displayFixtures.length > 0 ? (
+                                <div className="space-y-1.5">
+                                  {displayFixtures.map((fixture: any, i: number) => (
+                                    <div key={i}>
+                                      {getFixtureBadge(fixture)}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">No fixtures GW{viewingGw}</p>
+                              )}
+                              
+                              {playerFixtures.length > 1 && (
+                                <p className="text-[10px] text-fpl-light mt-1">
+                                  Double Gameweek! {playerFixtures.length} fixtures
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   <Separator />
 
                   <div>
-                    <h3 className="font-semibold mb-3">Squad List</h3>
+                    <h3 className="font-semibold mb-3">Squad List (GW{viewingGw})</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {result.starting_xi?.map((player) => (
+                      {(currentView?.starting_xi || result.starting_xi || []).map((player) => (
                         <div key={player.id} className="flex items-center justify-between bg-muted rounded-md px-3 py-2">
                           <div className="flex items-center gap-2">
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${getPositionColor(player.element_type)}`}>
@@ -447,7 +605,7 @@ export default function Dashboard() {
                           <span className="text-xs text-muted-foreground">{formatPrice(player.price)}</span>
                         </div>
                       ))}
-                      {result.bench?.map((player, i) => (
+                      {(currentView?.bench || result.bench || []).map((player, i) => (
                         <div key={player.id} className="flex items-center justify-between bg-muted/50 rounded-md px-3 py-2 opacity-60">
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] text-muted-foreground">BEN</span>

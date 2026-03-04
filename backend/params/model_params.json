@@ -1,0 +1,21 @@
+{
+  "gkp_multiplier": 0.4659769597047539,
+  "def_multiplier": 0.5326053002181196,
+  "mid_multiplier": 0.9794024620085363,
+  "fwd_multiplier": 0.8679455133252298,
+  "points_pg_weight": 0.2234257694105261,
+  "xgi_weight": 4.45578524472595,
+  "xa_weight": 1.0035579196813407,
+  "form_weight": 0.4646530439739563,
+  "minutes_weight": 0.19252745457366904,
+  "games_weight": 0.10925456103372105,
+  "threat_creativity_weight": 0.008511635871266559,
+  "home_bonus": 0.2147197404870317,
+  "fdr_weight": 0.2132683022021759,
+  "noise_std": 1.0356913631994848,
+  "n_estimators": 100,
+  "max_depth": 5,
+  "learning_rate": 0.1,
+  "min_samples_split": 10,
+  "min_samples_leaf": 5
+}

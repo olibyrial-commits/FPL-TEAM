@@ -10,10 +10,14 @@ from app.models.schemas import (
     OptimizeResponse,
     PredictionsResponse,
     PlayerPrediction,
+    BacktestRequest,
+    BacktestResponse,
+    FixtureInfo,
 )
 from app.services.predictor import PointPredictor
 from app.services.optimizer import TransferOptimizer
 from app.services.price_forecaster import PriceForecaster
+from app.services.backtester import Backtester
 
 logger = logging.getLogger(__name__)
 
@@ -249,6 +253,7 @@ async def optimize_team(request: Request, req: OptimizeRequest):
             use_hits=req.use_hits,
             chips_available=req.chips_available,
             price_changes=price_changes,
+            fixtures=fixtures,
         )
 
         result = optimizer.optimize()
@@ -297,6 +302,12 @@ async def optimize_team(request: Request, req: OptimizeRequest):
             optimized_expected_points=result.get("optimized_expected_points"),
             points_difference=result.get("points_difference"),
             savings=0,
+            fixtures={
+                pid: [FixtureInfo(**f) for f in fixs]
+                for pid, fixs in result.get("fixtures", {}).items()
+            }
+            if result.get("fixtures")
+            else None,
         )
 
     except HTTPException:
@@ -404,3 +415,72 @@ async def get_predictions(
     except Exception as e:
         logger.error(f"Error generating predictions: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Predictions failed: {str(e)}")
+
+
+@router.post("/backtest")
+async def run_backtest(request: Request, req: BacktestRequest):
+    """
+    Run backtesting on historical gameweeks.
+
+    Validates prediction accuracy by comparing predicted vs actual points
+    across specified gameweeks. Returns MAE, RMSE, and accuracy metrics.
+    """
+    logger.info(f"=== BACKTEST REQUEST START ===")
+    logger.info(f"Start GW: {req.start_gw}, End GW: {req.end_gw}")
+
+    fpl_client = get_fpl_client(request)
+
+    try:
+        current_gw = await fpl_client.get_current_gameweek()
+        logger.info(f"Current gameweek: {current_gw}")
+
+        if req.end_gw >= current_gw:
+            logger.warning(
+                f"End GW {req.end_gw} >= current GW {current_gw}. "
+                f"Adjusting to {current_gw - 1}"
+            )
+            req.end_gw = current_gw - 1
+
+        if req.start_gw < 1 or req.start_gw > req.end_gw:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid gameweek range: {req.start_gw} to {req.end_gw}",
+            )
+
+        logger.info("Fetching bootstrap data...")
+        bootstrap_data = await fpl_client.get_bootstrap_static()
+        players = bootstrap_data.get("elements", [])
+        teams = bootstrap_data.get("teams", [])
+        logger.info(f"Bootstrap: {len(players)} players, {len(teams)} teams")
+
+        logger.info("Fetching fixtures...")
+        fixtures = await fpl_client.get_fixtures()
+        logger.info(f"Fixtures: {len(fixtures)} total")
+
+        logger.info("Running backtest...")
+        backtester = Backtester(fpl_client)
+        results = await backtester.run_backtest(
+            players=players,
+            teams=teams,
+            fixtures=fixtures,
+            start_gw=req.start_gw,
+            end_gw=req.end_gw,
+        )
+
+        logger.info("=== BACKTEST REQUEST END ===")
+
+        return BacktestResponse(
+            success=True,
+            start_gw=req.start_gw,
+            end_gw=req.end_gw,
+            metrics=results["metrics"],
+            gameweek_breakdown=results["gameweek_breakdown"],
+            top_predictions=results["top_predictions"],
+            worst_predictions=results["worst_predictions"],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error running backtest: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Backtest failed: {str(e)}")

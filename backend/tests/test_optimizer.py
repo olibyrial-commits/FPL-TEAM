@@ -314,9 +314,9 @@ class TestFormationConstraints:
         for i in range(12, 17):
             players.append(create_mock_player(i, (i - 12) % 5 + 1, 4, 6.0, f"FWD_{i}"))
 
-        # Current squad: 15 players - complete squad
+        # Current squad: 15 players with proper FPL composition (2 GK, 5 DEF, 5 MID, 3 FWD)
         current_squad = [
-            # Starters: 1 GK, 3 DEF, 3 MID, 3 FWD
+            # Starters: 1 GK, 4 DEF, 4 MID, 2 FWD
             {
                 "id": 1,
                 "element_type": 1,
@@ -354,6 +354,15 @@ class TestFormationConstraints:
                 "bench_order": 0,
             },
             {
+                "id": 5,
+                "element_type": 2,
+                "team": 4,
+                "position": 1,
+                "is_captain": False,
+                "is_vice_captain": False,
+                "bench_order": 0,
+            },
+            {
                 "id": 7,
                 "element_type": 3,
                 "team": 1,
@@ -381,6 +390,15 @@ class TestFormationConstraints:
                 "bench_order": 0,
             },
             {
+                "id": 10,
+                "element_type": 3,
+                "team": 4,
+                "position": 1,
+                "is_captain": False,
+                "is_vice_captain": False,
+                "bench_order": 0,
+            },
+            {
                 "id": 12,
                 "element_type": 4,
                 "team": 1,
@@ -398,15 +416,6 @@ class TestFormationConstraints:
                 "is_vice_captain": False,
                 "bench_order": 0,
             },
-            {
-                "id": 14,
-                "element_type": 4,
-                "team": 3,
-                "position": 1,
-                "is_captain": False,
-                "is_vice_captain": False,
-                "bench_order": 0,
-            },
             # Bench: 1 GK, 1 DEF, 1 MID, 1 FWD
             {
                 "id": 16,
@@ -418,27 +427,27 @@ class TestFormationConstraints:
                 "bench_order": 1,
             },
             {
-                "id": 5,
+                "id": 6,
                 "element_type": 2,
-                "team": 4,
+                "team": 5,
                 "position": 0,
                 "is_captain": False,
                 "is_vice_captain": False,
                 "bench_order": 2,
             },
             {
-                "id": 10,
+                "id": 11,
                 "element_type": 3,
-                "team": 4,
+                "team": 5,
                 "position": 0,
                 "is_captain": False,
                 "is_vice_captain": False,
                 "bench_order": 3,
             },
             {
-                "id": 15,
+                "id": 14,
                 "element_type": 4,
-                "team": 4,
+                "team": 3,
                 "position": 0,
                 "is_captain": False,
                 "is_vice_captain": False,
@@ -489,9 +498,9 @@ class TestFormationConstraints:
         for i in range(12, 17):
             players.append(create_mock_player(i, (i - 12) % 5 + 1, 4, 6.0, f"FWD_{i}"))
 
-        # Current squad: 15 players - complete squad with at least 1 FWD
+        # Current squad: 15 players with proper FPL composition (2 GK, 5 DEF, 5 MID, 3 FWD)
         current_squad = [
-            # Starters: 1 GK, 3 DEF, 4 MID, 2 FWD
+            # Starters: 1 GK, 4 DEF, 4 MID, 2 FWD
             {
                 "id": 1,
                 "element_type": 1,
@@ -523,6 +532,15 @@ class TestFormationConstraints:
                 "id": 4,
                 "element_type": 2,
                 "team": 3,
+                "position": 1,
+                "is_captain": False,
+                "is_vice_captain": False,
+                "bench_order": 0,
+            },
+            {
+                "id": 5,
+                "element_type": 2,
+                "team": 4,
                 "position": 1,
                 "is_captain": False,
                 "is_vice_captain": False,
@@ -593,9 +611,9 @@ class TestFormationConstraints:
                 "bench_order": 1,
             },
             {
-                "id": 5,
+                "id": 6,
                 "element_type": 2,
-                "team": 4,
+                "team": 5,
                 "position": 0,
                 "is_captain": False,
                 "is_vice_captain": False,
@@ -664,9 +682,9 @@ class TestFormationConstraints:
         for i in range(12, 17):
             players.append(create_mock_player(i, (i - 12) % 5 + 1, 4, 6.0, f"FWD_{i}"))
 
-        # Current squad: 15 players - complete squad
+        # Current squad: 15 players with proper FPL composition (2 GK, 5 DEF, 5 MID, 3 FWD)
         current_squad = [
-            # Starters: 1 GK, 3 DEF, 3 MID, 3 FWD
+            # Starters: 1 GK, 4 DEF, 4 MID, 2 FWD
             {
                 "id": 1,
                 "element_type": 1,
@@ -704,6 +722,15 @@ class TestFormationConstraints:
                 "bench_order": 0,
             },
             {
+                "id": 5,
+                "element_type": 2,
+                "team": 4,
+                "position": 1,
+                "is_captain": False,
+                "is_vice_captain": False,
+                "bench_order": 0,
+            },
+            {
                 "id": 7,
                 "element_type": 3,
                 "team": 1,
@@ -731,6 +758,15 @@ class TestFormationConstraints:
                 "bench_order": 0,
             },
             {
+                "id": 10,
+                "element_type": 3,
+                "team": 4,
+                "position": 1,
+                "is_captain": False,
+                "is_vice_captain": False,
+                "bench_order": 0,
+            },
+            {
                 "id": 12,
                 "element_type": 4,
                 "team": 1,
@@ -748,15 +784,6 @@ class TestFormationConstraints:
                 "is_vice_captain": False,
                 "bench_order": 0,
             },
-            {
-                "id": 14,
-                "element_type": 4,
-                "team": 3,
-                "position": 1,
-                "is_captain": False,
-                "is_vice_captain": False,
-                "bench_order": 0,
-            },
             # Bench: 1 GK, 1 DEF, 1 MID, 1 FWD
             {
                 "id": 16,
@@ -768,27 +795,27 @@ class TestFormationConstraints:
                 "bench_order": 1,
             },
             {
-                "id": 5,
+                "id": 6,
                 "element_type": 2,
-                "team": 4,
+                "team": 5,
                 "position": 0,
                 "is_captain": False,
                 "is_vice_captain": False,
                 "bench_order": 2,
             },
             {
-                "id": 10,
+                "id": 11,
                 "element_type": 3,
-                "team": 4,
+                "team": 5,
                 "position": 0,
                 "is_captain": False,
                 "is_vice_captain": False,
                 "bench_order": 3,
             },
             {
-                "id": 15,
+                "id": 14,
                 "element_type": 4,
-                "team": 4,
+                "team": 3,
                 "position": 0,
                 "is_captain": False,
                 "is_vice_captain": False,

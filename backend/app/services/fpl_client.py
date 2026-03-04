@@ -227,3 +227,39 @@ class FPLClient:
             elif event["id"] == current_gw + 1:
                 return event["id"]
         return current_gw + 1
+
+    async def get_player_history(self, player_id: int) -> Dict:
+        """
+        Fetch historical data for a specific player.
+        Returns gameweek-by-gameweek performance including:
+        - minutes, goals, assists, clean sheets
+        - total points, bonus, bps
+        - opponent team, was_home, difficulty
+        """
+        cache_key = f"player_history_{player_id}"
+        cached = self._get_cache(cache_key)
+        if cached:
+            return cached
+
+        data = await self._rate_limited_request(
+            f"{self.BASE_URL}/element-summary/{player_id}/"
+        )
+        self._set_cache(cache_key, data)
+        return data
+
+    async def get_all_players_history(
+        self, player_ids: List[int]
+    ) -> Dict[int, List[Dict]]:
+        """
+        Fetch history for multiple players efficiently.
+        Returns dict mapping player_id -> list of gameweek history.
+        """
+        history_data = {}
+        for player_id in player_ids:
+            try:
+                data = await self.get_player_history(player_id)
+                history_data[player_id] = data.get("history", [])
+            except Exception as e:
+                logger.warning(f"Failed to fetch history for player {player_id}: {e}")
+                history_data[player_id] = []
+        return history_data

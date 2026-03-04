@@ -59,6 +59,17 @@ class FixtureDifficulty(BaseModel):
     is_home: bool
 
 
+class FixtureInfo(BaseModel):
+    """Fixture information for a player"""
+
+    gameweek: int
+    opponent: str
+    opponent_id: int
+    difficulty: int
+    is_home: bool
+    finished: bool = False
+
+
 class ManagerTeam(BaseModel):
     """Manager's FPL team"""
 
@@ -141,6 +152,7 @@ class OptimizeResponse(BaseModel):
     optimized_expected_points: Optional[float] = None
     points_difference: Optional[float] = None
     savings: Optional[float] = None
+    fixtures: Optional[Dict[int, List[FixtureInfo]]] = None  # player_id -> fixtures
 
 
 class PlayerPrediction(BaseModel):
@@ -163,3 +175,50 @@ class PredictionsResponse(BaseModel):
     current_gw: int
     horizon: int
     predictions: List[PlayerPrediction]
+
+
+class BacktestRequest(BaseModel):
+    """Request to run backtesting"""
+
+    start_gw: int = Field(
+        ..., ge=1, le=38, description="First gameweek to test (inclusive)"
+    )
+    end_gw: int = Field(
+        ..., ge=1, le=38, description="Last gameweek to test (inclusive)"
+    )
+
+
+class BacktestPlayerResult(BaseModel):
+    """Individual player backtest result"""
+
+    player_id: int
+    web_name: str
+    position: int
+    predicted: float
+    actual: float
+    error: float
+
+
+class BacktestMetrics(BaseModel):
+    """Backtest accuracy metrics"""
+
+    mae: float
+    rmse: float
+    accuracy_within_1: float
+    accuracy_within_2: float
+    accuracy_within_3: float
+    total_predictions: int
+    mean_predicted: float
+    mean_actual: float
+
+
+class BacktestResponse(BaseModel):
+    """Response from backtesting"""
+
+    success: bool
+    start_gw: int
+    end_gw: int
+    metrics: BacktestMetrics
+    gameweek_breakdown: Dict[str, Any]
+    top_predictions: List[BacktestPlayerResult]
+    worst_predictions: List[BacktestPlayerResult]

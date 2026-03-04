@@ -12,6 +12,16 @@ export interface Player {
 
 export interface SquadPlayer extends Player {
   position: number;
+  fixtures?: FixtureInfo[];
+}
+
+export interface FixtureInfo {
+  gameweek: number;
+  opponent: string;
+  opponent_id: number;
+  difficulty: number;
+  is_home: boolean;
+  finished: boolean;
 }
 
 export interface ManagerTeam {
@@ -63,6 +73,7 @@ export interface OptimizeResponse {
   optimized_expected_points?: number;
   points_difference?: number;
   savings?: number;
+  fixtures?: Record<number, FixtureInfo[]>;
 }
 
 export interface OptimizeRequest {

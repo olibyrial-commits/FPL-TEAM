@@ -27,6 +27,7 @@ class TransferOptimizer:
         self.players: List[Dict] = []
         self.teams: Dict[int, Dict] = {}
         self.predictions: Dict[int, Dict[int, float]] = {}
+        self.fixtures: List[Dict] = []
         self.current_squad: List[Dict] = []
         self.current_gw: int = 1
         self.horizon: int = 1
@@ -57,6 +58,7 @@ class TransferOptimizer:
         use_hits: bool = False,
         chips_available: Optional[Dict[str, bool]] = None,
         price_changes: Optional[Dict[int, float]] = None,
+        fixtures: Optional[List[Dict]] = None,
     ):
         """
         Set up the optimizer with required data.
@@ -87,6 +89,7 @@ class TransferOptimizer:
         self.players = players
         self.teams = {t["id"]: t for t in teams}
         self.predictions = predictions
+        self.fixtures = fixtures or []
         self.current_squad = current_squad
         self.current_gw = current_gw
         self.horizon = horizon
@@ -281,24 +284,37 @@ class TransferOptimizer:
                 # Player can't be both starter and bench
                 prob += start_vars[(p_id, gw)] + bench_vars[(p_id, gw)] <= 1
 
-            # Position constraints - exact for GK, minimum for others
-            # Exactly 1 GK, at least 3 DEF, at least 1 MID, at least 1 FWD
+            # Squad-level position constraints (15 total: 2 GK, 5 DEF, 5 MID, 3 FWD)
+            # Combined starters + bench must equal 15 with exact position counts
+            for pos, exact_count in [(1, 2), (2, 5), (3, 5), (4, 3)]:
+                prob += (
+                    lpSum(
+                        start_vars[(p_id, gw)] + bench_vars[(p_id, gw)]
+                        for p_id in player_ids
+                        if self._get_player_position(p_id) == pos
+                    )
+                    == exact_count
+                )
+
+            # Starting XI position constraints
+            # Exactly 1 GK (required), max limits for others
             prob += (
                 lpSum(
                     start_vars[(p_id, gw)]
                     for p_id in player_ids
                     if self._get_player_position(p_id) == 1
                 )
-                == 1  # Exactly 1 GK in starting XI
+                == 1  # Exactly 1 GK in starting XI (required)
             )
-            for pos, min_c in [(2, 3), (3, 1), (4, 1)]:
+            # Max limits for DEF/MID/FWD (at least 1 each is handled by default 11 players)
+            for pos, max_count in [(2, 5), (3, 5), (4, 3)]:
                 prob += (
                     lpSum(
                         start_vars[(p_id, gw)]
                         for p_id in player_ids
                         if self._get_player_position(p_id) == pos
                     )
-                    >= min_c
+                    <= max_count
                 )
 
             # Max 3 per team
@@ -424,6 +440,11 @@ class TransferOptimizer:
                     }
                 )
 
+        # Generate fixtures for each player in the optimized squad
+        fixtures_dict = {}
+        for player in optimized_squad:
+            fixtures_dict[player["id"]] = self._get_player_fixtures(player["id"])
+
         return {
             "success": True,
             "message": "Optimization complete",
@@ -442,6 +463,7 @@ class TransferOptimizer:
                 - self._calculate_expected_points(squad_player_ids),
                 2,
             ),
+            "fixtures": fixtures_dict,
         }
 
     def _calculate_transfer_plan(
@@ -501,6 +523,54 @@ class TransferOptimizer:
             preds = self._get_player_predictions(p_id)
             total += sum(preds)
         return total
+
+    def _get_player_fixtures(self, player_id: int) -> List[Dict[str, Any]]:
+        """
+        Get fixture information for a player across the horizon.
+        Returns list of fixtures with opponent, difficulty, home/away.
+        """
+        player = self.player_map.get(player_id)
+        if not player:
+            return []
+
+        team_id = player.get("team", 0)
+        fixtures = []
+
+        for fixture in self.fixtures:
+            gw = fixture.get("event")
+            if gw and gw > self.current_gw and gw <= self.current_gw + self.horizon:
+                team_a = fixture.get("team_a")
+                team_h = fixture.get("team_h")
+
+                # Check if this fixture involves the player's team
+                if team_a == team_id or team_h == team_id:
+                    opponent_id = team_h if team_a == team_id else team_a
+                    if opponent_id is None:
+                        continue
+
+                    opponent_team = self.teams.get(opponent_id)
+                    if not opponent_team:
+                        continue
+
+                    difficulty_key = (
+                        "team_a_difficulty"
+                        if team_a == team_id
+                        else "team_h_difficulty"
+                    )
+                    difficulty = fixture.get(difficulty_key, 3)
+
+                    fixtures.append(
+                        {
+                            "gameweek": gw,
+                            "opponent": opponent_team.get("name", "Unknown"),
+                            "opponent_id": opponent_id,
+                            "difficulty": difficulty,
+                            "is_home": team_h == team_id,
+                            "finished": fixture.get("finished", False),
+                        }
+                    )
+
+        return fixtures
 
     def _fallback_optimization(self) -> Dict[str, Any]:
         """
